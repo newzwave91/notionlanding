@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>천안김안과 — 경영 대시보드</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#FFFFFF; --sidebar:#F7F7F5; --sidebar-hover:#EFEFED; --sidebar-active:#EDEDEB;
+  --text:#37352F; --text-light:#787774; --text-lighter:#B4B4B0;
+  --border:#E9E9E7; --accent:#2EAADC;
+  --blue:#4A90D9; --green:#0F7B6C; --red:#E03E3E; --yellow:#DFAB01; --orange:#D9730D; --purple:#6940A5;
+  --callout:#F1F1EF; --callout-red:#FBE4E4; --callout-yellow:#FBF3DB; --callout-blue:#DDEBF1; --callout-green:#DBEDDB;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);background:var(--bg);}
+::-webkit-scrollbar{width:7px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#D4D4D0;border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:#ADADAD;}
+
+.app{display:flex;height:100vh;overflow:hidden;}
+
+/* ── Sidebar ── */
+.sidebar{width:260px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:width .2s ease;overflow:hidden;user-select:none;}
+.sidebar.collapsed{width:48px;}
+.sidebar-header{padding:14px 14px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.sidebar-logo{display:flex;align-items:center;gap:8px;}
+.sidebar-logo-icon{width:24px;height:24px;border-radius:4px;background:#2EAADC;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;}
+.sidebar-logo-text{font-size:14px;font-weight:600;white-space:nowrap;}
+.sidebar-toggle{background:none;border:none;cursor:pointer;font-size:15px;color:var(--text-light);padding:4px 6px;border-radius:4px;line-height:1;}
+.sidebar-toggle:hover{background:var(--sidebar-hover);}
+.sidebar-body{flex:1;overflow-y:auto;padding:8px 8px 16px;}
+.sidebar-label{padding:8px 8px 4px;font-size:11px;font-weight:600;color:var(--text-lighter);letter-spacing:.04em;}
+.sidebar-sublabel{padding:2px 8px 6px;font-size:11px;color:var(--text-lighter);}
+
+.nav-item{display:flex;align-items:center;gap:8px;padding:6px 10px;margin-bottom:1px;border-radius:4px;cursor:pointer;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-light);transition:background .1s;}
+.nav-item:hover{background:var(--sidebar-hover);}
+.nav-item.active{background:var(--sidebar-active);font-weight:600;color:var(--text);}
+.nav-item .icon{font-size:15px;flex-shrink:0;}
+.nav-item .new-badge{font-size:9px;background:#E03E3E;color:#fff;padding:1px 5px;border-radius:3px;font-weight:600;flex-shrink:0;}
+
+.fund-toggle{display:flex;align-items:center;gap:8px;padding:6px 10px;margin-top:2px;border-radius:4px;cursor:pointer;font-size:13.5px;color:var(--text-light);}
+.fund-toggle:hover{background:var(--sidebar-hover);}
+.fund-toggle .arrow{font-size:10px;color:var(--text-lighter);transition:transform .15s;margin-left:auto;}
+.fund-toggle .arrow.open{transform:rotate(90deg);}
+.fund-children{overflow:hidden;max-height:0;transition:max-height .25s ease;}
+.fund-children.open{max-height:400px;}
+.fund-child{display:flex;align-items:center;gap:8px;padding:5px 10px 5px 30px;font-size:12.5px;color:var(--text-lighter);cursor:pointer;border-radius:4px;}
+.fund-child:hover{background:var(--sidebar-hover);}
+
+.sidebar-divider{height:1px;background:var(--border);margin:12px 8px;}
+.sidebar-link{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:12.5px;color:var(--text-lighter);cursor:pointer;border-radius:4px;}
+.sidebar-link:hover{background:var(--sidebar-hover);}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:8px 24px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text-light);flex-shrink:0;}
+.breadcrumb span{color:var(--text-lighter);margin:0 4px;}
+.breadcrumb .current{color:var(--text);font-weight:500;}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.topbar-right .status{background:#DBEDDB;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:500;}
+
+.content-scroll{flex:1;overflow-y:auto;overflow-x:hidden;}
+.content{max-width:960px;margin:0 auto;padding:32px 48px 80px;}
+
+/* ── Typography ── */
+.page-header{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+.page-header .emoji{font-size:32px;}
+.page-header h1{font-size:30px;font-weight:700;letter-spacing:-.02em;}
+.page-desc{color:var(--text-light);font-size:14px;margin-bottom:24px;}
+
+.section-title{font-size:20px;font-weight:700;margin:32px 0 16px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.sub-title{font-size:16px;font-weight:600;margin:24px 0 12px;}
+
+/* ── Callout ── */
+.callout{display:flex;gap:10px;padding:16px 18px;border-radius:4px;background:var(--callout);font-size:14px;line-height:1.65;}
+.callout .callout-icon{font-size:20px;flex-shrink:0;}
+.callout .callout-body{flex:1;}
+.callout-blue{background:var(--callout-blue);}
+.callout-red{background:var(--callout-red);}
+.callout-yellow{background:var(--callout-yellow);}
+.callout-green{background:var(--callout-green);}
+
+/* ── KPI Cards ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.kpi-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.kpi-card{background:var(--callout);border-radius:4px;padding:16px 20px;display:flex;flex-direction:column;gap:4px;}
+.kpi-card .kpi-label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-light);}
+.kpi-card .kpi-value{font-size:26px;font-weight:700;letter-spacing:-.02em;}
+.kpi-card .kpi-footer{display:flex;justify-content:space-between;align-items:center;}
+.kpi-card .kpi-sub{font-size:12px;color:var(--text-light);}
+.kpi-card .kpi-status{font-size:16px;}
+
+/* ── Stat Card ── */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0;}
+.stat-card{border-radius:6px;padding:16px 20px;text-align:center;}
+.stat-card .stat-icon{font-size:12px;color:var(--text-light);margin-bottom:4px;}
+.stat-card .stat-value{font-size:28px;font-weight:700;}
+.stat-card .stat-value span{font-size:14px;font-weight:400;color:var(--text-light);}
+.stat-card .stat-sub{font-size:13px;font-weight:600;margin-top:2px;}
+
+/* ── Table ── */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:4px;font-size:13px;}
+.table-wrap table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;}
+.table-wrap th{padding:8px 12px;background:var(--callout);border-bottom:1px solid var(--border);font-weight:600;text-align:center;white-space:nowrap;font-size:12px;color:var(--text-light);}
+.table-wrap td{padding:7px 12px;border-bottom:1px solid var(--border);text-align:center;font-size:12.5px;}
+.table-wrap tr:last-child td{border-bottom:none;}
+
+/* ── Daily Report Table ── */
+.daily-table{overflow-x:auto;border:1px solid var(--border);border-radius:4px;}
+.daily-table table{width:100%;border-collapse:collapse;}
+.daily-table th{padding:8px 8px;border-bottom:2px solid var(--border);font-weight:600;text-align:center;font-size:11.5px;background:#E8EDF3;}
+.daily-table th.sticky{position:sticky;left:0;z-index:1;background:#E8EDF3;min-width:90px;font-size:12px;font-weight:700;}
+.daily-table th.sum-col{background:#D9E2F3;font-weight:700;min-width:62px;font-size:12px;}
+.daily-table td{padding:5px 8px;border-bottom:1px solid var(--border);text-align:center;font-size:11.5px;}
+.daily-table td.sticky{position:sticky;left:0;z-index:1;background:#fff;font-weight:500;font-size:11.5px;white-space:nowrap;text-align:left;padding-left:10px;}
+.daily-table td.sum-td{background:#F0F4FA;font-weight:700;font-size:12px;}
+.daily-table tr.header-row td{background:#F7F6F3;font-weight:600;}
+.daily-table tr.header-row td.sticky{background:#F7F6F3;font-weight:700;}
+.daily-table tr.sep-row td{height:2px;padding:0;background:var(--border);}
+
+/* ── Chart Container ── */
+.chart-box{position:relative;width:100%;}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:8px;}
+.chart-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+
+/* ── Doctor Cards Grid ── */
+.doc-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.doc-card{background:var(--callout);border-radius:4px;padding:14px 16px;}
+.doc-card .doc-name{font-size:13px;font-weight:600;margin-bottom:8px;}
+.doc-card .doc-stat{font-size:11px;color:var(--text-light);line-height:1.8;}
+.doc-card .doc-stat strong{color:var(--text);}
+
+/* ── Funnel ── */
+.funnel{display:flex;gap:0;margin:16px 0;}
+.funnel-step{flex:1;position:relative;text-align:center;padding:18px 16px;border-radius:0;}
+.funnel-step:first-child{border-radius:6px 0 0 6px;}
+.funnel-step:last-child{border-radius:0 6px 6px 0;}
+.funnel-step .funnel-icon{font-size:20px;}
+.funnel-step .funnel-label{font-size:12px;color:var(--text-light);margin:4px 0;}
+.funnel-step .funnel-value{font-size:20px;font-weight:700;}
+.funnel-arrow{position:absolute;right:-8px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text-light);z-index:1;}
+
+/* ── Toggle / Details ── */
+.toggle-block{cursor:pointer;margin-top:8px;}
+.toggle-block summary{font-weight:600;list-style:none;padding:6px 0;}
+.toggle-block summary::-webkit-details-marker{display:none;}
+.toggle-block .toggle-content{margin-top:8px;padding-left:8px;border-left:2px solid var(--yellow);line-height:1.7;font-size:13px;}
+
+/* ── Animations ── */
+.page{animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .sidebar{width:48px!important;}
+  .sidebar .sidebar-body,.sidebar .sidebar-logo{display:none;}
+  .content{padding:24px 16px 60px;}
+  .kpi-grid,.kpi-grid-4{grid-template-columns:repeat(2,1fr);}
+  .chart-row{grid-template-columns:1fr;}
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  .doc-cards{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ═══ SIDEBAR ═══ -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">김</div>
+        <div class="sidebar-logo-text">천안김안과 천안역점</div>
+      </div>
+      <button class="sidebar-toggle" id="sidebarToggle" title="접기/펼치기">◁</button>
+    </div>
+    <div class="sidebar-body" id="sidebarBody">
+      <div class="sidebar-label">👑 원장님 스페이스</div>
+      <div class="sidebar-sublabel">└─ 📊 경영 대시보드</div>
+      <div id="navItems"></div>
+
+      <div class="fund-toggle" id="fundToggle">
+        <span class="icon">💰</span>
+        <span style="flex:1">사내근로복지기금</span>
+        <span class="arrow" id="fundArrow">▶</span>
+      </div>
+      <div class="fund-children" id="fundChildren"></div>
+
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-label">빠른 링크</div>
+      <div class="sidebar-link"><span>📥</span> 직원 스페이스 →</div>
+      <div class="sidebar-link"><span>📅</span> 추진일정 (WBS)</div>
+      <div class="sidebar-link"><span>❓</span> 도움말</div>
+    </div>
+  </nav>
+
+  <!-- ═══ MAIN ═══ -->
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">
+        👑 원장님 스페이스<span>/</span>📊 경영 대시보드<span>/</span><span class="current" id="breadcrumbCurrent">🏠 Executive Dashboard</span>
+      </div>
+      <div class="topbar-right">
+        <span class="status">🟢 데이터 최신</span>
+        <span style="cursor:pointer">공유</span>
+        <span style="cursor:pointer">⋯</span>
+      </div>
+    </div>
+    <div class="content-scroll" id="contentScroll">
+      <div class="content" id="pageContent"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════════════
+const DOCTORS = ["정도현","이정우","허선림","이진호","이용민","신혁","노론"];
+const DOC_COLORS = ["#2EAADC","#4A90D9","#50C878","#FF8C42","#E74C3C","#9B59B6","#B4B4B0"];
+
+const dailyDoctors = {
+  정도현:{예약:33,내원:31,비예약:3,무도율:6.1,예약율:91.2,진료환자:34,백내장:5,렌즈삽입술:0,엑스트라:0,홀레이저:0,스마트:0,녹내장:0,PPV:0,PPV_CAT:0,fixation:0,기타수술:0,방박주사:2,벨트:5,IPL:4,yag:0,barrier:1,prp:0,squeezing:17,plug:10,IPLEMS상담:4,백술안저:0,백내장간단:1,드림간단:0,시력교정간단:0,보정환자수:87.5},
+  이정우:{예약:52,내원:51,비예약:2,무도율:1.9,예약율:96.2,진료환자:53,백내장:1,렌즈삽입술:0,엑스트라:0,홀레이저:0,스마트:0,녹내장:0,PPV:0,PPV_CAT:0,fixation:0,기타수술:0,방박주사:0,벨트:0,IPL:0,yag:0,barrier:0,prp:0,squeezing:17,plug:12,IPLEMS상담:3,백술안저:0,백내장간단:3,드림간단:0,시력교정간단:0,보정환자수:76},
+  허선림:{예약:38,내원:36,비예약:4,무도율:5.3,예약율:90.0,진료환자:40,백내장:0,렌즈삽입술:0,엑스트라:0,홀레이저:0,스마트:0,녹내장:0,PPV:0,PPV_CAT:0,fixation:0,기타수술:2,방박주사:1,벨트:0,IPL:0,yag:0,barrier:2,prp:0,squeezing:0,plug:0,IPLEMS상담:0,백술안저:0,백내장간단:0,드림간단:0,시력교정간단:0,보정환자수:78},
+  이진호:{예약:42,내원:26,비예약:35,무도율:38.1,예약율:42.6,진료환자:61,백내장:0,렌즈삽입술:0,엑스트라:0,홀레이저:0,스마트:2,녹내장:1,PPV:0,PPV_CAT:0,fixation:0,기타수술:1,방박주사:1,벨트:0,IPL:1,yag:5,barrier:2,prp:0,squeezing:29,plug:14,IPLEMS상담:1,백술안저:0,백내장간단:0,드림간단:1,시력교정간단:0,보정환자수:113.5},
+  이용민:{예약:36,내원:31,비예약:12,무도율:13.9,예약율:72.1,진료환자:43,백내장:0,렌즈삽입술:0,엑스트라:0,홀레이저:0,스마트:0,녹내장:0,PPV:0,PPV_CAT:0,fixation:0,기타수술:1,방박주사:0,벨트:0,IPL:0,yag:0,barrier:1,prp:0,squeezing:4,plug:0,IPLEMS상담:4,백술안저:0,백내장간단:0,드림간단:0,시력교정간단:0,보정환자수:83},
+  신혁:{예약:32,내원:31,비예약:34,무도율:18.8,예약율:43.3,진료환자:60,백내장:0,렌즈삽입술:0,엑스트라:0,홀레이저:0,스마트:0,녹내장:0,PPV:0,PPV_CAT:0,fixation:0,기타수술:0,방박주사:3,벨트:5,IPL:5,yag:6,barrier:2,prp:0,squeezing:39,plug:16,IPLEMS상담:0,백술안저:0,백내장간단:7,드림간단:0,시력교정간단:0,보정환자수:110.5},
+  노론:{예약:0,내원:0,비예약:0,무도율:0,예약율:0,진료환자:0,백내장:0,렌즈삽입술:0,엑스트라:0,홀레이저:0,스마트:0,녹내장:0,PPV:0,PPV_CAT:0,fixation:0,기타수술:0,방박주사:0,벨트:0,IPL:0,yag:0,barrier:0,prp:0,squeezing:0,plug:0,IPLEMS상담:0,백술안저:0,백내장간단:0,드림간단:0,시력교정간단:0,보정환자수:0},
+};
+
+const clinicRes = {
+  "외래 포함 예약":{정도현:50,이정우:51,허선림:0,이진호:56,이용민:30,신혁:40,노론:0},
+  "백내장":{정도현:2,이정우:0,허선림:0,이진호:4,이용민:0,신혁:0,노론:0},
+  "렌즈삽입술":{정도현:0,이정우:0,허선림:0,이진호:0,이용민:0,신혁:0,노론:0},
+  "라섹":{정도현:0,이정우:0,허선림:0,이진호:0,이용민:0,신혁:0,노론:0},
+  "스마트":{정도현:0,이정우:0,허선림:0,이진호:0,이용민:1,신혁:0,노론:0},
+  "녹내장":{정도현:0,이정우:0,허선림:0,이진호:0,이용민:0,신혁:0,노론:0},
+  "PPV":{정도현:0,이정우:0,허선림:0,이진호:0,이용민:0,신혁:1,노론:0},
+  "PPV+CAT":{정도현:0,이정우:0,허선림:0,이진호:0,이용민:0,신혁:0,노론:0},
+  "기타수술":{정도현:0,이정우:0,허선림:0,이진호:0,이용민:1,신혁:1,노론:0},
+  "방박주사":{정도현:0,이정우:0,허선림:0,이진호:0,이용민:0,신혁:0,노론:6},
+  "안검진":{정도현:0,이정우:0,허선림:0,이진호:0,이용민:0,신혁:0,노론:0},
+};
+
+const monthlyRev = [
+  {m:"25.03",ins:17100,uni:11400},{m:"25.04",ins:16300,uni:10900},{m:"25.05",ins:18600,uni:12400},
+  {m:"25.06",ins:17900,uni:11900},{m:"25.07",ins:18300,uni:12200},{m:"25.08",ins:17300,uni:11600},
+  {m:"25.09",ins:19300,uni:12800},{m:"25.10",ins:20100,uni:13400},{m:"25.11",ins:18700,uni:12500},
+  {m:"25.12",ins:17600,uni:11800},{m:"26.01",ins:20500,uni:13700},{m:"26.02",ins:21500,uni:14300},
+  {m:"26.03",ins:21900,uni:14600}
+];
+
+const patientTrend = [
+  {m:"25.05",nw:350,rv:2050,rr:85.4},{m:"25.06",nw:330,rv:1970,rr:85.7},{m:"25.07",nw:340,rv:2010,rr:85.5},
+  {m:"25.08",nw:325,rv:1900,rr:85.4},{m:"25.09",nw:360,rv:2140,rr:85.6},{m:"25.10",nw:380,rv:2250,rr:85.6},
+  {m:"25.11",nw:355,rv:2100,rr:85.5},{m:"25.12",nw:330,rv:1950,rr:85.5},{m:"26.01",nw:390,rv:2310,rr:85.6},
+  {m:"26.02",nw:410,rv:2420,rr:85.5},{m:"26.03",nw:430,rv:2480,rr:85.2}
+];
+
+const docRev = [
+  {n:"정도현",rev:7200,pat:520,per:13.8},{n:"이정우",rev:6800,pat:490,per:13.9},
+  {n:"허선림",rev:5400,pat:410,per:13.2},{n:"이진호",rev:6100,pat:460,per:13.3},
+  {n:"이용민",rev:4900,pat:380,per:12.9},{n:"신혁",rev:5200,pat:400,per:13.0},{n:"노론",rev:900,pat:120,per:7.5}
+];
+
+const staff = [
+  {d:"의사",q:8,c:7,cost:42000},{d:"간호사",q:12,c:11,cost:33000},{d:"원무",q:6,c:6,cost:15600},
+  {d:"검사",q:4,c:4,cost:12000},{d:"상담",q:3,c:3,cost:8400},{d:"행정",q:2,c:2,cost:6000}
+];
+
+const msoData = [{a:"인사관리",r:83},{a:"재무관리",r:80},{a:"의료장비",r:88},{a:"IT시스템",r:80},{a:"마케팅",r:90},{a:"운영관리",r:83}];
+const mktData = [{ch:"네이버",sp:3200,pt:180,cpa:17.8},{ch:"카카오",sp:1800,pt:85,cpa:21.2},{ch:"인스타",sp:1200,pt:65,cpa:18.5},{ch:"유튜브",sp:800,pt:30,cpa:26.7},{ch:"오프라인",sp:500,pt:70,cpa:7.1}];
+
+const kpiDefs = [
+  {n:"월매출",def:"당월 총 진료수입(급여+비급여)",f:"급여+비급여",u:"만원",g:"≥ 3억",y:"2.5~3억",r:"< 2.5억"},
+  {n:"비급여비중",def:"총매출 대비 비급여 매출 비율",f:"비급여/총매출×100",u:"%",g:"≥ 40%",y:"35~40%",r:"< 35%"},
+  {n:"진료수",def:"당월 총 진료 환자 수",f:"초진+재진",u:"명",g:"≥ 2,500",y:"2,000~2,500",r:"< 2,000"},
+  {n:"인건비율",def:"총매출 대비 인건비 비율",f:"인건비/총매출×100",u:"%",g:"≤ 35%",y:"35~40%",r:"> 40%"},
+  {n:"영업이익률",def:"매출 대비 영업이익 비율",f:"(매출-비용)/매출×100",u:"%",g:"≥ 20%",y:"15~20%",r:"< 15%"},
+  {n:"인당매출",def:"진료환자 1인당 평균 매출",f:"총매출/총진료수",u:"만원",g:"≥ 12",y:"10~12",r:"< 10"},
+  {n:"재진율",def:"전체 환자 중 재진 비율",f:"재진/총환자×100",u:"%",g:"≥ 85%",y:"80~85%",r:"< 80%"},
+  {n:"신환수",def:"당월 신규 환자 수",f:"초진환자 수",u:"명",g:"≥ 400",y:"300~400",r:"< 300"},
+];
+
+const compData = [
+  {k:"월매출(만원)",b:36500,h:52000},{k:"비급여비중(%)",b:40.0,h:42.5},{k:"인건비율(%)",b:33.2,h:31.8},
+  {k:"영업이익률(%)",b:22.1,h:25.3},{k:"백내장(건)",b:85,h:120},{k:"재진율(%)",b:85.2,h:87.1}
+];
+
+const weeklyKPI = [{w:"W1",cv:72.5,rv:85.2},{w:"W2",cv:74.1,rv:85.8},{w:"W3",cv:73.2,rv:85.5},{w:"W4",cv:75.8,rv:86.1}];
+
+// ══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════════════
+const PAGES = [
+  {id:"exec",icon:"🏠",label:"Executive Dashboard"},
+  {id:"doctor",icon:"👨‍⚕️",label:"원장단별 매출 현황"},
+  {id:"daily",icon:"📋",label:"일일 진료보고",isNew:true},
+  {id:"biz",icon:"📈",label:"사업 운영 상세"},
+  {id:"mkt",icon:"📣",label:"마케팅 성과"},
+  {id:"mso",icon:"🏢",label:"MSO 이행 현황"},
+  {id:"compare",icon:"📊",label:"본점 대비 비교"},
+  {id:"kpidef",icon:"📐",label:"KPI 정의서"},
+  {id:"monthly",icon:"📋",label:"월간 보고서"},
+];
+
+const FUND_PAGES = [
+  {icon:"📋",label:"기금 개요 대시보드"},{icon:"📊",label:"사업계획 및 예산"},{icon:"💳",label:"지출 내역 및 정산"},
+  {icon:"🏦",label:"대부 사업 관리"},{icon:"🎁",label:"복지 사업 관리"},{icon:"📝",label:"이사회 및 총회"},{icon:"📂",label:"규정 및 정관"}
+];
+
+let currentPage = "exec";
+let charts = [];
+
+function destroyCharts(){ charts.forEach(c=>c.destroy()); charts=[]; }
+
+// ── Build sidebar nav ──
+function buildNav(){
+  const nav = document.getElementById("navItems");
+  nav.innerHTML = PAGES.map(p=>`
+    <div class="nav-item${p.id===currentPage?' active':''}" data-page="${p.id}">
+      <span class="icon">${p.icon}</span>
+      <span>${p.label}</span>
+      ${p.isNew?'<span class="new-badge">NEW</span>':''}
+    </div>
+  `).join("");
+  nav.querySelectorAll(".nav-item").forEach(el=>{
+    el.addEventListener("click",()=>navigate(el.dataset.page));
+  });
+
+  const fc = document.getElementById("fundChildren");
+  fc.innerHTML = FUND_PAGES.map(p=>`<div class="fund-child"><span>${p.icon}</span> ${p.label}</div>`).join("");
+}
+
+function navigate(pageId){
+  currentPage = pageId;
+  document.querySelectorAll(".nav-item").forEach(el=>{
+    el.classList.toggle("active", el.dataset.page===pageId);
+  });
+  const pg = PAGES.find(p=>p.id===pageId);
+  document.getElementById("breadcrumbCurrent").textContent = `${pg.icon} ${pg.label}`;
+  document.getElementById("contentScroll").scrollTop = 0;
+  destroyCharts();
+  renderPage(pageId);
+}
+
+// ── Sidebar toggle ──
+document.getElementById("sidebarToggle").addEventListener("click",()=>{
+  const sb = document.getElementById("sidebar");
+  sb.classList.toggle("collapsed");
+  document.getElementById("sidebarToggle").textContent = sb.classList.contains("collapsed")?"☰":"◁";
+});
+
+// ── Fund toggle ──
+document.getElementById("fundToggle").addEventListener("click",()=>{
+  const fc = document.getElementById("fundChildren");
+  const ar = document.getElementById("fundArrow");
+  fc.classList.toggle("open");
+  ar.classList.toggle("open");
+});
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════
+function h(tag,attrs,children){
+  let s = `<${tag}`;
+  if(attrs) Object.entries(attrs).forEach(([k,v])=>{ if(k==='style'&&typeof v==='object') s+=` style="${Object.entries(v).map(([a,b])=>`${a.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())}:${b}`).join(';')}"`; else s+=` ${k}="${v}"`; });
+  if(children===undefined||children===null) return s+'/>';
+  return s+'>'+children+'</'+tag+'>';
+}
+const sum = (arr) => arr.reduce((a,b)=>a+b,0);
+const fmt = (n) => typeof n==='number' ? n.toLocaleString() : n;
+
+function makeChart(id, cfg){
+  requestAnimationFrame(()=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const c = new Chart(el, cfg);
+    charts.push(c);
+  });
+}
+
+const chartDefaults = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{labels:{font:{family:"Pretendard",size:11},boxWidth:12,padding:12}},tooltip:{titleFont:{family:"Pretendard"},bodyFont:{family:"Pretendard"}}},
+  scales:{x:{ticks:{font:{family:"Pretendard",size:11},color:"#787774"},grid:{color:"#E9E9E7"}},y:{ticks:{font:{family:"Pretendard",size:11},color:"#787774"},grid:{color:"#E9E9E7"}}}
+};
+function mergeOpts(custom){ return JSON.parse(JSON.stringify({...chartDefaults,...custom})); }
+
+// ══════════════════════════════════════════════════════════════
+// PAGE RENDERERS
+// ══════════════════════════════════════════════════════════════
+
+function renderPage(id){
+  const el = document.getElementById("pageContent");
+  el.innerHTML = '<div class="page">'+({
+    exec: renderExec,
+    doctor: renderDoctor,
+    daily: renderDaily,
+    biz: renderBiz,
+    mkt: renderMkt,
+    mso: renderMso,
+    compare: renderCompare,
+    kpidef: renderKPIDef,
+    monthly: renderMonthly,
+  }[id]||renderExec)()+'</div>';
+
+  // Init charts after DOM is ready
+  ({
+    exec: initExecCharts,
+    doctor: initDoctorCharts,
+    daily: initDailyCharts,
+    biz: initBizCharts,
+    mkt: initMktCharts,
+    mso: initMsoCharts,
+    compare: initCompareCharts,
+  }[id]||function(){})();
+}
+
+// ── Executive Dashboard ──
+function renderExec(){
+  return `
+    <div class="page-header"><span class="emoji">🏠</span><h1>Executive Dashboard</h1></div>
+    <p class="page-desc">천안김안과 천안역점 · 2026년 3월 기준 · 업데이트 3/10 18:00</p>
+
+    <div class="callout callout-blue"><span class="callout-icon">🏥</span><div class="callout-body"><strong>천안김안과 천안역점</strong> · 기준월: 2026년 3월 · 업데이트: 3/10(화) 18:00 · 데이터 신뢰도 🟢</div></div>
+
+    <div style="margin-top:16px" class="callout callout-red"><span class="callout-icon">⚠️</span><div class="callout-body"><strong style="color:var(--red)">이슈 알림</strong><br>• 이용민 원장 무도율 13.9% — 전월 대비 상승 (확인 필요)<br>• 이진호 원장 예약율 42.6% — 비예약 환자 비중 과다 (🔴)<br>• 노론 원장 3/10 진료 없음 — 스케줄 확인 필요</div></div>
+
+    <h2 class="section-title">📊 핵심 KPI</h2>
+    <div class="kpi-grid">
+      ${[["💰","월매출","3.65억","전월비 ▲1.9%","🟢"],["👥","진료수","2,910명","전월비 ▲2.1%","🟢"],["📊","비급여비중","40.0%","전월비 ▲0.3%p","🟢"],["💼","인건비율","33.2%","전월비 ▼0.5%p","🟢"],["💵","영업이익률","22.1%","전월비 ▲0.8%p","🟢"],["🆕","인당매출","12.5만","전월비 ▲0.2만","🟢"]].map(([e,l,v,s,st])=>`
+        <div class="kpi-card">
+          <div class="kpi-label"><span>${e}</span>${l}</div>
+          <div class="kpi-value">${v}</div>
+          <div class="kpi-footer"><span class="kpi-sub">${s}</span><span class="kpi-status">${st}</span></div>
+        </div>`).join("")}
+    </div>
+
+    <h2 class="section-title">📈 매출 추이 (13개월)</h2>
+    <div class="chart-box" style="height:280px"><canvas id="chartRevenue"></canvas></div>
+
+    <div class="chart-row">
+      <div><h3 class="sub-title">👥 환자 추이 + 재진율</h3><div class="chart-box" style="height:240px"><canvas id="chartPatient"></canvas></div></div>
+      <div><h3 class="sub-title">🍩 진료항목별 비중</h3><div class="chart-box" style="height:240px"><canvas id="chartProcedure"></canvas></div></div>
+    </div>
+
+    <h2 class="section-title">👨‍⚕️ 원장단별 매출 요약</h2>
+    <div class="chart-box" style="height:240px"><canvas id="chartDocRev"></canvas></div>
+
+    <h2 class="section-title">👥 인력 현황</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>직종</th><th>정원</th><th>현원</th><th>공석</th><th>월인건비(만원)</th><th>충원율</th></tr></thead>
+      <tbody>${staff.map(s=>`<tr><td style="font-weight:600">${s.d}</td><td>${s.q}</td><td>${s.c}</td><td style="color:${s.q-s.c>0?'var(--red)':'inherit'}">${s.q-s.c}</td><td>${s.cost.toLocaleString()}</td><td>${((s.c/s.q)*100).toFixed(0)}% ${s.c>=s.q?'🟢':'🟡'}</td></tr>`).join("")}</tbody>
+    </table></div>
+
+    <h2 class="section-title">📈 주간 KPI 추이</h2>
+    <div class="chart-box" style="height:220px"><canvas id="chartWeekly"></canvas></div>
+  `;
+}
+
+function initExecCharts(){
+  makeChart("chartRevenue",{type:"bar",data:{labels:monthlyRev.map(d=>d.m),datasets:[{label:"급여",data:monthlyRev.map(d=>d.ins),backgroundColor:"#4A90D9",borderRadius:0},{label:"비급여",data:monthlyRev.map(d=>d.uni),backgroundColor:"#0F7B6C",borderRadius:{topLeft:4,topRight:4}}]},options:{...mergeOpts({}),plugins:{...chartDefaults.plugins},scales:{...chartDefaults.scales,x:{stacked:true,...chartDefaults.scales.x},y:{stacked:true,...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:v=>(v/10000).toFixed(1)+'억'}}}}});
+
+  makeChart("chartPatient",{type:"bar",data:{labels:patientTrend.map(d=>d.m),datasets:[{label:"신환",data:patientTrend.map(d=>d.nw),backgroundColor:"#D9730D",order:2},{label:"재진",data:patientTrend.map(d=>d.rv),backgroundColor:"#4A90D9",order:2},{label:"재진율",data:patientTrend.map(d=>d.rr),type:"line",borderColor:"#E03E3E",backgroundColor:"transparent",borderWidth:2,pointRadius:3,yAxisID:"y1",order:1}]},options:{...mergeOpts({}),scales:{...chartDefaults.scales,x:{stacked:true,...chartDefaults.scales.x},y:{stacked:true,...chartDefaults.scales.y},y1:{position:"right",min:80,max:90,ticks:{...chartDefaults.scales.y.ticks,callback:v=>v+'%'},grid:{display:false}}}}});
+
+  makeChart("chartProcedure",{type:"doughnut",data:{labels:["백내장","시교술","IPL","망막주사","외래"],datasets:[{data:[35,22,15,12,16],backgroundColor:["#4A90D9","#50C878","#FF8C42","#E03E3E","#9B59B6"],borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"55%",plugins:{legend:{position:"bottom",labels:{font:{family:"Pretendard",size:11},boxWidth:12,padding:10}}}}});
+
+  makeChart("chartDocRev",{type:"bar",data:{labels:docRev.map(d=>d.n),datasets:[{label:"매출(만원)",data:docRev.map(d=>d.rev),backgroundColor:DOC_COLORS,borderRadius:4}]},options:mergeOpts({})});
+
+  makeChart("chartWeekly",{type:"line",data:{labels:weeklyKPI.map(d=>d.w),datasets:[{label:"상담전환율",data:weeklyKPI.map(d=>d.cv),borderColor:"#4A90D9",backgroundColor:"transparent",borderWidth:2,pointRadius:4,tension:.3},{label:"재진율",data:weeklyKPI.map(d=>d.rv),borderColor:"#0F7B6C",backgroundColor:"transparent",borderWidth:2,pointRadius:4,tension:.3}]},options:mergeOpts({})});
+}
+
+// ── 원장단별 매출 현황 ──
+function renderDoctor(){
+  return `
+    <div class="page-header"><span class="emoji">👨‍⚕️</span><h1>원장단별 매출 현황</h1></div>
+    <p class="page-desc">원장간 매출 비교 · 시술 포트폴리오 · 2026년 3월</p>
+
+    <h2 class="section-title">💳 원장별 KPI 카드</h2>
+    <div class="doc-cards">
+      ${docRev.filter(d=>d.n!=="노론").map(d=>`<div class="doc-card"><div class="doc-name">${d.n} 원장</div><div class="doc-stat">진료: <strong>${d.pat}명</strong><br>매출: <strong>${d.rev.toLocaleString()}만</strong><br>인당: <strong>${d.per}만</strong></div></div>`).join("")}
+    </div>
+
+    <h2 class="section-title">📊 원장별 월매출 비교</h2>
+    <div class="chart-box" style="height:260px"><canvas id="chartDocBar"></canvas></div>
+
+    <h2 class="section-title">📈 원장별 매출 추이</h2>
+    <div class="chart-box" style="height:260px"><canvas id="chartDocLine"></canvas></div>
+
+    <h2 class="section-title">🍩 원장별 시술 구성 비교</h2>
+    <div class="chart-row-3">
+      <div style="text-align:center"><div style="font-weight:600;margin-bottom:4px">정도현 원장</div><div class="chart-box" style="height:180px"><canvas id="chartDocPie1"></canvas></div></div>
+      <div style="text-align:center"><div style="font-weight:600;margin-bottom:4px">이정우 원장</div><div class="chart-box" style="height:180px"><canvas id="chartDocPie2"></canvas></div></div>
+      <div style="text-align:center"><div style="font-weight:600;margin-bottom:4px">이진호 원장</div><div class="chart-box" style="height:180px"><canvas id="chartDocPie3"></canvas></div></div>
+    </div>
+
+    <h2 class="section-title">📋 백내장 수술 실적 상세</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>원장</th><th>건수</th><th>추정금액(만원)</th><th>인당단가(만원)</th></tr></thead>
+      <tbody>${[{n:"정도현",c:22,a:4400},{n:"이정우",c:18,a:3600},{n:"허선림",c:12,a:2400},{n:"이진호",c:15,a:3000},{n:"이용민",c:10,a:2000},{n:"신혁",c:8,a:1600}].map(r=>`<tr><td style="font-weight:600">${r.n}</td><td>${r.c}</td><td>${r.a.toLocaleString()}</td><td>${(r.a/r.c).toFixed(0)}</td></tr>`).join("")}</tbody>
+    </table></div>
+  `;
+}
+
+function initDoctorCharts(){
+  makeChart("chartDocBar",{type:"bar",data:{labels:docRev.map(d=>d.n),datasets:[{label:"매출(만원)",data:docRev.map(d=>d.rev),backgroundColor:DOC_COLORS,borderRadius:4}]},options:mergeOpts({})});
+
+  makeChart("chartDocLine",{type:"line",data:{labels:["1월","2월","3월"],datasets:[{label:"정도현",data:[6800,7000,7200],borderColor:"#2EAADC",borderWidth:2,pointRadius:4,tension:.3,fill:false},{label:"이정우",data:[6400,6600,6800],borderColor:"#4A90D9",borderWidth:2,pointRadius:4,tension:.3,fill:false},{label:"허선림",data:[5100,5200,5400],borderColor:"#50C878",borderWidth:2,pointRadius:4,tension:.3,fill:false},{label:"이진호",data:[5800,5900,6100],borderColor:"#FF8C42",borderWidth:2,pointRadius:4,tension:.3,fill:false}]},options:mergeOpts({})});
+
+  const pieOpt = {responsive:true,maintainAspectRatio:false,cutout:"35%",plugins:{legend:{display:false}}};
+  const cols = ["#4A90D9","#FF8C42","#50C878","#9B59B6"];
+  makeChart("chartDocPie1",{type:"doughnut",data:{labels:["백내장","IPL","squeezing","외래"],datasets:[{data:[5,4,17,8],backgroundColor:cols,borderWidth:1,borderColor:"#fff"}]},options:pieOpt});
+  makeChart("chartDocPie2",{type:"doughnut",data:{labels:["백내장","IPL","squeezing","외래"],datasets:[{data:[1,0,17,35],backgroundColor:cols,borderWidth:1,borderColor:"#fff"}]},options:pieOpt});
+  makeChart("chartDocPie3",{type:"doughnut",data:{labels:["백내장","IPL","squeezing","외래"],datasets:[{data:[0,1,29,31],backgroundColor:cols,borderWidth:1,borderColor:"#fff"}]},options:pieOpt});
+}
+
+// ── 일일 진료보고 ──
+function renderDaily(){
+  const d = dailyDoctors;
+  const procRows = [
+    ["예약","예약",1],["내원","내원",1],["비예약","비예약",0],["무도율(%)","무도율",0,1],["예약율(%)","예약율",0,1],
+    [null],["진료환자","진료환자",1],["백내장(4)","백내장",0],["렌즈삽입술(4)","렌즈삽입술",0],
+    ["엑스트라(5)","엑스트라",0],["홀레이저(4)","홀레이저",0],["스마트(6)","스마트",0],["녹내장(10)","녹내장",0],
+    ["PPV(10)","PPV",0],["PPV+CAT(14)","PPV_CAT",0],["fixation(0)","fixation",0],["기타수술(3)","기타수술",0],
+    ["방박주사(1)","방박주사",0],["벨트(2)","벨트",0],["IPL(2)","IPL",0],["yag(1)","yag",0],
+    ["barrier(1)","barrier",0],["prp(2)","prp",0],["squeezing(0.5)","squeezing",0],["plug(0.5)","plug",0],
+    ["IPLEMS상담(0.5)","IPLEMS상담",0],
+    [null],["백술안저(1)","백술안저",0],["백내장간단","백내장간단",0],["드림간단","드림간단",0],["시력교정간단","시력교정간단",0],
+    [null],["보정환자수","보정환자수",1,0,1]
+  ];
+
+  let tbody = "";
+  procRows.forEach(row=>{
+    if(row[0]===null){ tbody+=`<tr class="sep-row"><td colspan="9"></td></tr>`; return; }
+    const [label,key,isH,isPct,isFloat] = row;
+    const isPercent = isPct===1;
+    const vals = DOCTORS.map(n=>d[n][key]);
+    let total;
+    if(isPercent){ const nonzero = vals.filter(v=>v>0); total = nonzero.length?(sum(nonzero)/nonzero.length).toFixed(1):0; }
+    else if(isFloat) total = sum(vals).toFixed(1);
+    else total = sum(vals);
+
+    const cls = isH ? ' class="header-row"' : '';
+    tbody += `<tr${cls}>`;
+    tbody += `<td class="sticky"${isH?' style="font-weight:700"':''}>${label}</td>`;
+    DOCTORS.forEach(n=>{
+      const v = d[n][key];
+      let display = v===0 ? "" : isPercent ? v.toFixed(1) : v;
+      let color = "";
+      if(key==="무도율"&&v>10) color=' style="color:var(--red)"';
+      if(key==="예약율"&&v<70&&v>0) color=' style="color:var(--red)"';
+      tbody += `<td${color}>${display}</td>`;
+    });
+    tbody += `<td class="sum-td">${total}</td></tr>`;
+  });
+
+  let resBody = "";
+  Object.entries(clinicRes).forEach(([label,vals])=>{
+    const total = sum(Object.values(vals));
+    resBody += `<tr><td class="sticky" style="font-weight:600">${label}</td>`;
+    DOCTORS.forEach(n=>{ resBody+=`<td>${vals[n]||""}</td>`; });
+    resBody += `<td class="sum-td">${total||""}</td></tr>`;
+  });
+
+  return `
+    <div class="page-header"><span class="emoji">📋</span><h1>일일 진료보고</h1></div>
+    <p class="page-desc">원장님 일일 보고용 · EMR 데이터 기반</p>
+
+    <div class="callout callout-blue"><span class="callout-icon">📅</span><div class="callout-body"><strong>3월 10일(화) 진료보고</strong> · 업데이트 18:30 · 데이터 신뢰도 🟢</div></div>
+
+    <div class="stat-grid">
+      <div class="stat-card" style="background:#DDEBF1"><div class="stat-icon">☀️ 오전</div><div class="stat-value">138<span>명</span></div><div class="stat-sub" style="color:#4A90D9">47%</div></div>
+      <div class="stat-card" style="background:#FBF3DB"><div class="stat-icon">🌙 오후</div><div class="stat-value">153<span>명</span></div><div class="stat-sub" style="color:#D9730D">53%</div></div>
+      <div class="stat-card" style="background:#DBEDDB"><div class="stat-icon">🏥 총 내원</div><div class="stat-value">291<span>명</span></div><div class="stat-sub" style="color:#0F7B6C">전일비 ▲12</div></div>
+      <div class="stat-card" style="background:#FBE4E4"><div class="stat-icon">🆕 신환 내원</div><div class="stat-value">24<span>명</span></div><div class="stat-sub" style="color:#E03E3E">8%</div></div>
+    </div>
+
+    <h2 class="section-title">👨‍⚕️ 원장별 진료 실적</h2>
+    <div class="daily-table"><table>
+      <thead><tr>
+        <th class="sticky">구분</th>
+        ${DOCTORS.map(n=>`<th>${n}</th>`).join("")}
+        <th class="sum-col">합계</th>
+      </tr></thead>
+      <tbody>${tbody}</tbody>
+    </table></div>
+
+    <h2 class="section-title">📅 의원예약 현황</h2>
+    <div class="daily-table"><table>
+      <thead><tr>
+        <th class="sticky">구분</th>
+        ${DOCTORS.map(n=>`<th>${n}</th>`).join("")}
+        <th class="sum-col">합계</th>
+      </tr></thead>
+      <tbody>${resBody}</tbody>
+    </table></div>
+
+    <div class="chart-row" style="margin-top:16px">
+      <div><h3 class="sub-title">📊 원장별 보정환자수</h3><div class="chart-box" style="height:230px"><canvas id="chartDailyBar"></canvas></div></div>
+      <div><h3 class="sub-title">🍩 당일 시술 항목 비중</h3><div class="chart-box" style="height:230px"><canvas id="chartDailyPie"></canvas></div></div>
+    </div>
+
+    <div style="margin-top:20px" class="callout callout-yellow"><span class="callout-icon">📌</span><div class="callout-body"><strong>전일 대비 변동</strong><br>• 총내원 291명 (전일 279명 대비 ▲12명)<br>• 이진호 원장 비예약 35건 — 전일 대비 ▲8건 🟡<br>• 신혁 원장 squeezing 39건 — 금월 일평균 대비 ▲11건</div></div>
+  `;
+}
+
+function initDailyCharts(){
+  const docs = DOCTORS.filter(n=>n!=="노론");
+  makeChart("chartDailyBar",{type:"bar",data:{labels:docs,datasets:[{label:"보정환자수",data:docs.map(n=>dailyDoctors[n].보정환자수),backgroundColor:docs.map(n=>dailyDoctors[n].보정환자수>=100?"#2EAADC":"#4A90D9"),borderRadius:4}]},options:mergeOpts({})});
+
+  const sf = (key)=>sum(DOCTORS.map(n=>dailyDoctors[n][key]));
+  makeChart("chartDailyPie",{type:"doughnut",data:{labels:["squeezing","plug","IPL","방박주사","yag","기타"],datasets:[{data:[sf("squeezing"),sf("plug"),sf("IPL"),sf("방박주사"),sf("yag"),sf("기타수술")+sf("barrier")+sf("벨트")],backgroundColor:["#4A90D9","#50C878","#FF8C42","#E03E3E","#9B59B6","#B4B4B0"],borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{position:"bottom",labels:{font:{family:"Pretendard",size:10},boxWidth:10,padding:8}}}}});
+}
+
+// ── 사업 운영 상세 ──
+function renderBiz(){
+  return `
+    <div class="page-header"><span class="emoji">📈</span><h1>사업 운영 상세</h1></div>
+    <p class="page-desc">매출/수익 · 환자 퍼널 · 인력 · 손익</p>
+
+    <h2 class="section-title">A. 급여/비급여 Stacked Bar</h2>
+    <div class="chart-box" style="height:260px"><canvas id="chartBizRev"></canvas></div>
+
+    <h2 class="section-title">B. 영업이익 추이</h2>
+    <div class="chart-box" style="height:240px"><canvas id="chartBizProfit"></canvas></div>
+
+    <h2 class="section-title">C. 환자 퍼널</h2>
+    <div class="funnel">
+      ${[{e:"📥",l:"유입",v:"3,410",bg:"#DDEBF1"},{e:"📅",l:"예약",v:"2,910",bg:"#DBEDDB"},{e:"🏥",l:"내원",v:"2,630",bg:"#FBF3DB"},{e:"💊",l:"시술",v:"1,840",bg:"#FBE4E4"}].map((s,i)=>`
+        <div class="funnel-step" style="background:${s.bg}">
+          <div class="funnel-icon">${s.e}</div>
+          <div class="funnel-label">${s.l}</div>
+          <div class="funnel-value">${s.v}</div>
+          ${i<3?'<div class="funnel-arrow">→</div>':''}
+        </div>`).join("")}
+    </div>
+
+    <h2 class="section-title">D. 비용 비중</h2>
+    <div class="chart-row">
+      <div><h3 class="sub-title">직종별 인건비</h3><div class="chart-box" style="height:220px"><canvas id="chartBizStaff"></canvas></div></div>
+      <div><h3 class="sub-title">비용 구성 Donut</h3><div class="chart-box" style="height:220px"><canvas id="chartBizCost"></canvas></div></div>
+    </div>
+  `;
+}
+
+function initBizCharts(){
+  const last6 = monthlyRev.slice(-6);
+  makeChart("chartBizRev",{type:"bar",data:{labels:last6.map(d=>d.m),datasets:[{label:"급여",data:last6.map(d=>d.ins),backgroundColor:"#4A90D9"},{label:"비급여",data:last6.map(d=>d.uni),backgroundColor:"#0F7B6C"}]},options:{...mergeOpts({}),scales:{...chartDefaults.scales,x:{stacked:true,...chartDefaults.scales.x},y:{stacked:true,...chartDefaults.scales.y}}}});
+
+  makeChart("chartBizProfit",{type:"bar",data:{labels:["10월","11월","12월","1월","2월","3월"],datasets:[{label:"영업이익(만원)",data:[6700,6550,6100,7300,7700,8070],backgroundColor:"#50C878",borderRadius:4,order:2},{label:"이익률(%)",data:[20.0,21.0,20.7,21.3,21.5,22.1],type:"line",borderColor:"#E03E3E",backgroundColor:"transparent",borderWidth:2,pointRadius:3,yAxisID:"y1",order:1}]},options:{...mergeOpts({}),scales:{...chartDefaults.scales,y1:{position:"right",min:18,max:24,ticks:{...chartDefaults.scales.y.ticks,callback:v=>v+'%'},grid:{display:false}}}}});
+
+  makeChart("chartBizStaff",{type:"bar",data:{labels:staff.map(s=>s.d),datasets:[{data:staff.map(s=>s.cost),backgroundColor:"#4A90D9",borderRadius:4}]},options:{...mergeOpts({}),indexAxis:"y",plugins:{legend:{display:false}}}});
+
+  makeChart("chartBizCost",{type:"doughnut",data:{labels:["인건비","임대료","재료비","마케팅","MSO","기타"],datasets:[{data:[33,15,18,12,8,14],backgroundColor:["#4A90D9","#50C878","#FF8C42","#E03E3E","#9B59B6","#B4B4B0"],borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"50%",plugins:{legend:{position:"bottom",labels:{font:{family:"Pretendard",size:10},boxWidth:10}}}}});
+}
+
+// ── 마케팅 성과 ──
+function renderMkt(){
+  return `
+    <div class="page-header"><span class="emoji">📣</span><h1>마케팅 성과</h1></div>
+    <p class="page-desc">채널별 ROI · CPA · 2026년 3월</p>
+
+    <h2 class="section-title">채널별 광고비 + CPA</h2>
+    <div class="chart-row">
+      <div style="height:260px"><canvas id="chartMktBar"></canvas></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>채널</th><th>광고비(만)</th><th>유입환자</th><th>CPA(만)</th></tr></thead>
+        <tbody>${mktData.map(m=>`<tr><td style="font-weight:600">${m.ch}</td><td>${m.sp.toLocaleString()}</td><td>${m.pt}</td><td style="color:${m.cpa>20?'var(--red)':'var(--green)'}">${m.cpa}</td></tr>`).join("")}</tbody>
+      </table></div>
+    </div>
+
+    <h2 class="section-title">마케팅 ROI</h2>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label"><span>💰</span>총 광고비</div><div class="kpi-value">7,500만</div><div class="kpi-footer"><span class="kpi-sub">전월비 ▲300만</span><span class="kpi-status">🟡</span></div></div>
+      <div class="kpi-card"><div class="kpi-label"><span>📈</span>비급여 매출 증가분</div><div class="kpi-value">1.2억</div><div class="kpi-footer"><span class="kpi-sub">광고비 대비 ×1.6</span><span class="kpi-status">🟢</span></div></div>
+      <div class="kpi-card"><div class="kpi-label"><span>🎯</span>평균 CPA</div><div class="kpi-value">17.4만</div><div class="kpi-footer"><span class="kpi-sub">전월비 ▼1.2만</span><span class="kpi-status">🟢</span></div></div>
+    </div>
+  `;
+}
+
+function initMktCharts(){
+  makeChart("chartMktBar",{type:"bar",data:{labels:mktData.map(m=>m.ch),datasets:[{label:"광고비(만원)",data:mktData.map(m=>m.sp),backgroundColor:["#4A90D9","#DFAB01","#FF8C42","#E03E3E","#50C878"],borderRadius:4}]},options:mergeOpts({plugins:{legend:{display:false}}})});
+}
+
+// ── MSO 이행 현황 ──
+function renderMso(){
+  return `
+    <div class="page-header"><span class="emoji">🏢</span><h1>MSO 이행 현황</h1></div>
+    <p class="page-desc">열람 전용 · 수정은 직원 스페이스에서</p>
+
+    <div class="kpi-grid" style="margin-bottom:24px">
+      <div class="kpi-card"><div class="kpi-label"><span>📊</span>총 이행률</div><div class="kpi-value">84%</div><div class="kpi-footer"><span class="kpi-sub">목표 90%</span><span class="kpi-status">🟡</span></div></div>
+      <div class="kpi-card"><div class="kpi-label"><span>📋</span>SOP 적용률</div><div class="kpi-value">78%</div><div class="kpi-footer"><span class="kpi-sub">8/12 프로세스</span><span class="kpi-status">🟡</span></div></div>
+      <div class="kpi-card"><div class="kpi-label"><span>🔌</span>시스템 연동률</div><div class="kpi-value">83%</div><div class="kpi-footer"><span class="kpi-sub">5/6 시스템</span><span class="kpi-status">🟡</span></div></div>
+    </div>
+
+    <h2 class="section-title">서비스 이행률</h2>
+    <div class="chart-row">
+      <div style="height:260px"><canvas id="chartMsoBar"></canvas></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>영역</th><th>이행률</th><th>상태</th></tr></thead>
+        <tbody>${msoData.map(m=>`<tr><td style="font-weight:600">${m.a}</td><td>${m.r}%</td><td>${m.r>=85?'🟢':m.r>=75?'🟡':'🔴'}</td></tr>`).join("")}</tbody>
+      </table></div>
+    </div>
+  `;
+}
+
+function initMsoCharts(){
+  makeChart("chartMsoBar",{type:"bar",data:{labels:msoData.map(m=>m.a),datasets:[{label:"이행률(%)",data:msoData.map(m=>m.r),backgroundColor:msoData.map(m=>m.r>=85?"#50C878":m.r>=75?"#DFAB01":"#E03E3E"),borderRadius:4}]},options:{...mergeOpts({}),indexAxis:"y",scales:{...chartDefaults.scales,x:{...chartDefaults.scales.x,max:100}},plugins:{legend:{display:false}}}});
+}
+
+// ── 본점 대비 비교 ──
+function renderCompare(){
+  return `
+    <div class="page-header"><span class="emoji">📊</span><h1>본점 대비 비교분석</h1></div>
+    <p class="page-desc">천안역점 vs 본점 주요 KPI 비교</p>
+
+    <h2 class="section-title">KPI 비교 테이블</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>KPI</th><th>천안역점</th><th>본점</th><th>차이</th><th>평가</th></tr></thead>
+      <tbody>${compData.map(c=>{
+        const diff=c.b-c.h;
+        return`<tr><td style="font-weight:600">${c.k}</td><td>${c.b.toLocaleString()}</td><td>${c.h.toLocaleString()}</td><td style="color:${diff>=0?'var(--green)':'var(--red)'}">${diff>=0?'+':''}${diff.toFixed(1)}</td><td>${diff>=0?'🟢':'🟡'}</td></tr>`;
+      }).join("")}</tbody>
+    </table></div>
+
+    <h2 class="section-title">월매출 비교 추이</h2>
+    <div class="chart-box" style="height:260px"><canvas id="chartCompLine"></canvas></div>
+  `;
+}
+
+function initCompareCharts(){
+  makeChart("chartCompLine",{type:"line",data:{labels:["10월","11월","12월","1월","2월","3월"],datasets:[{label:"천안역점",data:[33500,31200,29400,34200,35800,36500],borderColor:"#2EAADC",borderWidth:2.5,pointRadius:4,tension:.3,fill:false},{label:"본점",data:[48000,49500,47000,50000,51500,52000],borderColor:"#FF8C42",borderWidth:2.5,pointRadius:4,tension:.3,fill:false}]},options:mergeOpts({scales:{...chartDefaults.scales,y:{...chartDefaults.scales.y,ticks:{...chartDefaults.scales.y.ticks,callback:v=>(v/10000).toFixed(1)+'억'}}}})});
+}
+
+// ── KPI 정의서 ──
+function renderKPIDef(){
+  return `
+    <div class="page-header"><span class="emoji">📐</span><h1>KPI 정의서</h1></div>
+    <p class="page-desc">지표 정의 · 계산식 · 상태 기준 열람</p>
+
+    <div class="table-wrap"><table>
+      <thead><tr><th>지표명</th><th style="min-width:160px">정의</th><th style="min-width:140px">계산식</th><th>단위</th><th style="background:#DBEDDB">🟢 정상</th><th style="background:#FBF3DB">🟡 확인</th><th style="background:#FBE4E4">🔴 경고</th></tr></thead>
+      <tbody>${kpiDefs.map(k=>`<tr><td style="font-weight:600">${k.n}</td><td style="text-align:left;font-size:11.5px">${k.def}</td><td style="text-align:left;font-family:monospace;font-size:11px">${k.f}</td><td>${k.u}</td><td style="background:#F4FBF4;font-size:11.5px">${k.g}</td><td style="background:#FEFCF3;font-size:11.5px">${k.y}</td><td style="background:#FEF4F4;font-size:11.5px">${k.r}</td></tr>`).join("")}</tbody>
+    </table></div>
+  `;
+}
+
+// ── 월간 보고서 ──
+function renderMonthly(){
+  return `
+    <div class="page-header"><span class="emoji">📋</span><h1>월간 보고서</h1></div>
+    <p class="page-desc">2026년 3월 · 경영지원팀 작성</p>
+
+    <div class="callout callout-blue"><span class="callout-icon">📌</span><div class="callout-body">
+      <strong>이달의 요약</strong><br><br>
+      <strong>핵심 성과:</strong> 월매출 3.65억 달성 (목표대비 101.4%), 비급여비중 40% 돌파, 영업이익률 22.1%로 전월 대비 0.8%p 개선<br><br>
+      <strong>주요 이슈:</strong> 이진호 원장 비예약 환자 비중 과다 (예약율 42.6%), 의사 1명 공석 (채용 진행 중)<br><br>
+      <strong>다음달 계획:</strong> 비급여 마케팅 강화 (카카오 채널 예산 ▲20%), 이진호 원장 예약 시스템 개선, 신규 의사 채용 완료 목표
+    </div></div>
+
+    <h2 class="section-title">전월 대비 변화</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>KPI</th><th>2월</th><th>3월</th><th>변화</th><th>평가</th></tr></thead>
+      <tbody>${[
+        {k:"월매출(만원)",p:"35,800",c:"36,500",ch:"▲700",s:"🟢"},
+        {k:"비급여비중",p:"39.7%",c:"40.0%",ch:"▲0.3%p",s:"🟢"},
+        {k:"진료수(명)",p:"2,830",c:"2,910",ch:"▲80",s:"🟢"},
+        {k:"인건비율",p:"33.7%",c:"33.2%",ch:"▼0.5%p",s:"🟢"},
+        {k:"영업이익률",p:"21.3%",c:"22.1%",ch:"▲0.8%p",s:"🟢"},
+        {k:"재진율",p:"85.5%",c:"85.2%",ch:"▼0.3%p",s:"🟡"},
+      ].map(r=>`<tr><td style="font-weight:600">${r.k}</td><td>${r.p}</td><td>${r.c}</td><td style="color:${r.ch.includes('▲')?'var(--green)':'var(--red)'}">${r.ch}</td><td>${r.s}</td></tr>`).join("")}</tbody>
+    </table></div>
+
+    <h2 class="section-title">💬 원장님 지시사항</h2>
+    <div class="callout callout-yellow"><span class="callout-icon">💬</span><div class="callout-body" style="font-size:13px;line-height:1.8">
+      <details class="toggle-block">
+        <summary>3/10 — 이진호 원장 예약율 개선 방안 마련 지시</summary>
+        <div class="toggle-content">비예약 환자 비중이 지속적으로 높음. 예약 시스템 개선 및 사전 예약 유도 방안을 3/15까지 보고할 것.</div>
+      </details>
+      <details class="toggle-block">
+        <summary>3/5 — 비급여 마케팅 확대 검토</summary>
+        <div class="toggle-content">비급여비중 40% 달성을 축하. 45% 목표 달성을 위한 마케팅 예산 재편성 검토 요청.</div>
+      </details>
+    </div></div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+Chart.defaults.font.family = "Pretendard";
+buildNav();
+renderPage("exec");
+</script>
+</body>
+</html>
